@@ -3,54 +3,731 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kanbang Demo – Vanilla</title>
+  <title>Kanbang — Vanilla Demo</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0 }
-    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e5e5e5; padding: 32px }
-    h1 { margin-bottom: 24px; font-size: 20px; opacity: .6 }
-    .kbn-board { display: flex; gap: 16px; overflow-x: auto; user-select: none }
-    .kbn-col { width: 240px; flex-shrink: 0; background: #1a1a1a; border-radius: 10px; padding: 12px }
-    .kbn-col-header { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; opacity: .5; margin-bottom: 10px }
-    .kbn-col-body { display: flex; flex-direction: column; gap: 8px; min-height: 40px }
-    .kbn-card { background: #262626; border: 1px solid #333; border-radius: 8px; padding: 12px 14px; cursor: grab; font-size: 14px }
-    .kbn-card:active { cursor: grabbing }
-    .kbn-card--floating { border-radius: 8px !important; cursor: grabbing !important }
-    .kbn-col-body--active-drag .kbn-card { transition: transform 160ms ease }
-    .kbn-col-body--clearing-drag .kbn-card { transition: none !important }
-    body.kbn-dragging { cursor: grabbing }
-    .kbn-board--autoscrolling {}
+    :root {
+      --bg:          #f4f4f5;
+      --surface:     #ffffff;
+      --surface2:    #fafafa;
+      --border:      #e4e4e7;
+      --text:        #18181b;
+      --text-muted:  #71717a;
+      --accent:      #3b82f6;
+      --accent-ring: rgba(59,130,246,.15);
+      --r:           8px;
+      --shadow:      0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-lg:   0 16px 48px rgba(0,0,0,.18), 0 4px 12px rgba(0,0,0,.07);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 40px 32px 60px;
+      min-height: 100vh;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    header h1 { font-size: 15px; font-weight: 700; letter-spacing: -.01em }
+    header p  { font-size: 13px; color: var(--text-muted) }
+
+    /* ── Board ── */
+    .kb-board {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      user-select: none;
+    }
+
+    /* ── Column ── */
+    .kb-col {
+      width: 264px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      transition: border-color 120ms, box-shadow 120ms;
+    }
+    .kb-col--over {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-ring);
+    }
+
+    .kb-col-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      border-radius: 12px 12px 0 0;
+    }
+    .kb-col-header-left { display: flex; align-items: center; gap: 7px }
+
+    .kb-col-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .kb-col[data-col="todo"]  .kb-col-dot { background: #a1a1aa }
+    .kb-col[data-col="doing"] .kb-col-dot { background: var(--accent) }
+    .kb-col[data-col="done"]  .kb-col-dot { background: #22c55e }
+
+    .kb-col-title {
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--text-muted);
+    }
+    .kb-col-count {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: var(--border);
+      border-radius: 99px;
+      padding: 1px 7px;
+      min-width: 22px;
+      text-align: center;
+    }
+
+    .kb-col-body {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      padding: 10px;
+      min-height: 56px;
+      border-radius: 0 0 12px 12px;
+    }
+
+    /* Push-apart animation — class names mapped via configureKanbanDrag */
+    .kb-col-body--active-drag  .kb-card { transition: transform 160ms cubic-bezier(.25,.46,.45,.94) }
+    .kb-col-body--clearing-drag .kb-card { transition: none !important }
+
+    /* ── Card ── */
+    .kb-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 11px 13px;
+      font-size: 13.5px;
+      line-height: 1.45;
+      cursor: grab;
+      box-shadow: var(--shadow);
+      transition: box-shadow 120ms, border-color 120ms;
+      touch-action: none;
+      -webkit-user-drag: none;
+    }
+    .kb-card:hover {
+      border-color: #d4d4d8;
+      box-shadow: 0 2px 8px rgba(0,0,0,.09), 0 1px 3px rgba(0,0,0,.05);
+    }
+    .kb-card:active { cursor: grabbing }
+
+    /* Floating clone — class name mapped via configureKanbanDrag */
+    .kb-card--floating {
+      border-radius: var(--r) !important;
+      cursor: grabbing !important;
+      box-shadow: var(--shadow-lg) !important;
+    }
+
+    /* Global drag state — class name mapped via configureKanbanDrag */
+    body.kb-dragging { cursor: grabbing }
+    body.kb-dragging .kb-card { pointer-events: none }
   </style>
 </head>
 <body>
-  <h1>kanbang · vanilla demo</h1>
-  <div class="kbn-board">
-    <div class="kbn-col" data-colonne="todo">
-      <div class="kbn-col-header">To do</div>
-      <div class="kbn-col-body">
-        <div class="kbn-card" data-id="1">Card 1</div>
-        <div class="kbn-card" data-id="2">Card 2</div>
-        <div class="kbn-card" data-id="3">Card 3</div>
+
+  <header>
+    <h1>kanbang</h1>
+    <p>Vanilla demo · drag to reorder · order persisted in localStorage</p>
+  </header>
+
+  <div class="kb-board" id="board">
+    <div class="kb-col" data-col="todo">
+      <div class="kb-col-header">
+        <div class="kb-col-header-left">
+          <span class="kb-col-dot"></span>
+          <span class="kb-col-title">To do</span>
+        </div>
+        <span class="kb-col-count" id="count-todo">0</span>
       </div>
+      <div class="kb-col-body" id="col-todo"></div>
     </div>
-    <div class="kbn-col" data-colonne="doing">
-      <div class="kbn-col-header">In progress</div>
-      <div class="kbn-col-body">
-        <div class="kbn-card" data-id="4">Card 4</div>
+
+    <div class="kb-col" data-col="doing">
+      <div class="kb-col-header">
+        <div class="kb-col-header-left">
+          <span class="kb-col-dot"></span>
+          <span class="kb-col-title">In progress</span>
+        </div>
+        <span class="kb-col-count" id="count-doing">0</span>
       </div>
+      <div class="kb-col-body" id="col-doing"></div>
     </div>
-    <div class="kbn-col" data-colonne="done">
-      <div class="kbn-col-header">Done</div>
-      <div class="kbn-col-body"></div>
+
+    <div class="kb-col" data-col="done">
+      <div class="kb-col-header">
+        <div class="kb-col-header-left">
+          <span class="kb-col-dot"></span>
+          <span class="kb-col-title">Done</span>
+        </div>
+        <span class="kb-col-count" id="count-done">0</span>
+      </div>
+      <div class="kb-col-body" id="col-done"></div>
     </div>
   </div>
+
   <script type="module">
-    // import { onCardPointerDown } from 'kanbang'
-    // Demo uses placeholder — wire up once kanbang is built
-    document.querySelectorAll('.kbn-card').forEach(card => {
-      card.addEventListener('pointerdown', e => {
-        console.log('drag start:', card.dataset.id, '— wire onCardPointerDown here')
+    // ── kanbang (inlined) ─────────────────────────────────────────────────────
+    // Once published to npm: import { ... } from 'https://esm.sh/kanbang'
+
+    // — Config —
+
+    const defaultKbConfig = {
+      selectors: { col: '.kbn-col', colBody: '.kbn-col-body', card: '.kbn-card', board: '.kbn-board', colDataAttr: 'data-colonne' },
+      classes:   { dragging: 'kbn-dragging', cardFloating: 'kbn-card--floating', colActive: 'kbn-col-body--active-drag', colClearing: 'kbn-col-body--clearing-drag', boardScrolling: 'kbn-board--autoscrolling' },
+    }
+    let _cfg = defaultKbConfig
+
+    function configureKanbanDrag(cfg) {
+      _cfg = {
+        selectors: { ...defaultKbConfig.selectors, ...(cfg.selectors ?? {}) },
+        classes:   { ...defaultKbConfig.classes,   ...(cfg.classes   ?? {}) },
+      }
+    }
+    function getConfig() { return _cfg }
+
+    // — Auto-scroll —
+
+    const ZONE = 80, MAX_PX = 14
+    let scrollRafId = null, velX = 0, velY = 0, boardScrollEl = null
+
+    function scrollVel(d) { if (d >= ZONE) return 0; const r = 1 - d / ZONE; return MAX_PX * r * r }
+
+    function scrollTick() {
+      const { classes } = getConfig()
+      if (velX === 0 && velY === 0) { scrollRafId = null; boardScrollEl?.classList.remove(classes.boardScrolling); return }
+      if (boardScrollEl && velX !== 0) boardScrollEl.scrollLeft += velX
+      if (velY !== 0) window.scrollBy(0, velY)
+      scrollRafId = requestAnimationFrame(scrollTick)
+    }
+
+    function updateAutoScroll(x, y) {
+      const { selectors, classes } = getConfig()
+      if (!boardScrollEl) boardScrollEl = document.querySelector(selectors.board)
+      velX = 0; velY = 0
+      if (boardScrollEl) {
+        const r = boardScrollEl.getBoundingClientRect()
+        if (x < r.left + ZONE)        velX = -scrollVel(x - r.left)
+        else if (x > r.right - ZONE)  velX =  scrollVel(r.right - x)
+      }
+      if (y < ZONE)                          velY = -scrollVel(y)
+      else if (y > window.innerHeight - ZONE) velY =  scrollVel(window.innerHeight - y)
+      if ((velX !== 0 || velY !== 0) && scrollRafId === null) {
+        boardScrollEl?.classList.add(classes.boardScrolling)
+        scrollRafId = requestAnimationFrame(scrollTick)
+      }
+    }
+
+    function stopAutoScroll() {
+      const { classes } = getConfig()
+      if (scrollRafId !== null) { cancelAnimationFrame(scrollRafId); scrollRafId = null }
+      velX = 0; velY = 0
+      boardScrollEl?.classList.remove(classes.boardScrolling)
+      boardScrollEl = null
+    }
+
+    // — Drag state —
+
+    const DRAG_THRESHOLD = 5, SNAPBACK_MS = 280, LAND_MS = 180, LAND_SETTLE_MS = 20, TOUCH_DELAY_MS = 200
+
+    let floatingClone = null, sourceEl = null, sourceRect = null
+    let offsetX = 0, offsetY = 0, activeCbs = null
+    let lastOverCol = null, pendingEl = null, pendingId = null
+    let startX = 0, startY = 0, isDragging = false, lastDropIndex = 0
+    let lastOffsetCol = null, prevMouseX = 0, tilt = 0
+    let touchDelayTimer = null, latestTouchX = 0, latestTouchY = 0
+    let rafMoveId = null, pendingMoveX = 0, pendingMoveY = 0
+    let colBodyCache = null, colCardsCache = []
+    let clearClassRafId = null, clearClassRafCol = null
+
+    // — Card offsets (push-apart) —
+
+    function clearCardOffsets(instant = false) {
+      const { selectors, classes } = getConfig()
+      if (!lastOffsetCol) return
+      const col = lastOffsetCol
+      lastOffsetCol = null
+      const colBody = colBodyCache, cards = colCardsCache
+      colBodyCache = null; colCardsCache = []
+      if (!colBody) return
+      if (clearClassRafId !== null && clearClassRafCol === col) {
+        cancelAnimationFrame(clearClassRafId); clearClassRafId = null; clearClassRafCol = null
+      }
+      if (instant) {
+        colBody.classList.remove(classes.colActive)
+        colBody.classList.add(classes.colClearing)
+        for (const c of cards) c.style.transform = ''
+        colBody.style.paddingBottom = ''
+        clearClassRafId = requestAnimationFrame(() => {
+          clearClassRafId = null; clearClassRafCol = null
+          colBody.classList.remove(classes.colClearing)
+        })
+        clearClassRafCol = col
+      } else {
+        for (const c of cards) { c.style.transition = 'transform 180ms cubic-bezier(.25,.46,.45,.94)'; c.style.transform = '' }
+        colBody.style.paddingBottom = ''
+        requestAnimationFrame(() => {
+          const b = document.querySelector(`${selectors.col}[${selectors.colDataAttr}="${CSS.escape(col)}"] ${selectors.colBody}`)
+          if (!b) return
+          b.classList.remove(classes.colActive)
+          b.querySelectorAll(`:scope > ${selectors.card}`).forEach(c => { c.style.transition = '' })
+        })
+      }
+    }
+
+    function updateCardOffsets(newDropIdx, prevDropIdx, col, colChanged) {
+      const { selectors, classes } = getConfig()
+      if (!sourceRect) return
+      if (colChanged && lastOffsetCol) clearCardOffsets(true)
+      lastOffsetCol = col
+      if (colChanged) {
+        const cb = document.querySelector(`${selectors.col}[${selectors.colDataAttr}="${CSS.escape(col)}"] ${selectors.colBody}`)
+        if (!cb) { colBodyCache = null; colCardsCache = []; return }
+        colBodyCache = cb
+        colCardsCache = Array.from(cb.querySelectorAll(`:scope > ${selectors.card}`))
+      }
+      const colBody = colBodyCache
+      if (!colBody) return
+      const cards = colCardsCache
+      const shift = sourceRect.height + 8
+      if (colChanged) {
+        colBodyCache.classList.add(classes.colActive)
+        const isSrc = sourceEl?.closest(selectors.col)?.getAttribute(selectors.colDataAttr) === col
+        if (isSrc) {
+          colBodyCache.classList.add(classes.colClearing)
+          clearClassRafId = requestAnimationFrame(() => {
+            clearClassRafId = null; clearClassRafCol = null
+            colBodyCache?.classList.remove(classes.colClearing)
+          })
+          clearClassRafCol = col
+        } else { void colBodyCache.offsetHeight }
+        for (let i = newDropIdx; i < cards.length; i++) {
+          if (cards[i].style.display === 'none') continue
+          cards[i].style.transform = `translateY(${shift}px)`
+        }
+      } else {
+        const lo = Math.min(prevDropIdx, newDropIdx), hi = Math.max(prevDropIdx, newDropIdx)
+        for (let i = lo; i < hi && i < cards.length; i++) {
+          if (cards[i].style.display === 'none') continue
+          cards[i].style.transform = i >= newDropIdx ? `translateY(${shift}px)` : ''
+        }
+      }
+      colBody.style.paddingBottom = `${shift}px`
+    }
+
+    function getCardLandingPosition(col) {
+      const { selectors } = getConfig()
+      const colBody = document.querySelector(`${selectors.col}[${selectors.colDataAttr}="${CSS.escape(col)}"] ${selectors.colBody}`)
+      if (!colBody || !sourceRect) return null
+      const r = colBody.getBoundingClientRect()
+      const visible = Array.from(colBody.querySelectorAll(`:scope > ${selectors.card}`)).filter(c => c.style.display !== 'none')
+      let lastBottom = null
+      for (const c of visible) { if (!c.style.transform) lastBottom = c.getBoundingClientRect().bottom; else break }
+      return { left: r.left + 8, top: lastBottom !== null ? lastBottom + 8 : r.top + 8 }
+    }
+
+    // — Clone —
+
+    function createClone(el, x, y) {
+      const { selectors, classes } = getConfig()
+      const rect = el.getBoundingClientRect()
+      sourceRect = rect; offsetX = x - rect.left; offsetY = y - rect.top
+      const clone = el.cloneNode(true)
+      clone.className = `${selectors.card.slice(1)} ${classes.cardFloating}`
+      Object.assign(clone.style, {
+        position: 'fixed', left: '0', top: '0', width: `${rect.width}px`,
+        zIndex: '9999', pointerEvents: 'none', margin: '0',
+        transform: `translate(${rect.left}px, ${rect.top}px) scale(1.04) rotate(0deg)`,
+        boxShadow: '0 16px 40px rgba(0,0,0,.42)', transition: 'none',
       })
+      document.body.appendChild(clone)
+      floatingClone = clone; sourceEl = el; el.style.display = 'none'; prevMouseX = x
+    }
+
+    function moveClone(x, y) {
+      if (!floatingClone) return
+      const dx = x - prevMouseX; prevMouseX = x
+      tilt = tilt + (Math.max(-5, Math.min(5, dx * 0.3)) - tilt) * 0.18
+      floatingClone.style.transform = `translate(${x - offsetX}px, ${y - offsetY}px) scale(1.04) rotate(${tilt}deg)`
+    }
+
+    function removeClone() { if (floatingClone) { floatingClone.remove(); floatingClone = null } }
+    function restoreSource() { if (sourceEl) { sourceEl.style.animation = 'none'; sourceEl.style.display = ''; sourceEl = null } }
+
+    // — Hit-testing —
+
+    function findColonne(x, y) {
+      const { selectors } = getConfig()
+      for (const el of document.elementsFromPoint(x, y)) {
+        if (floatingClone?.contains(el)) continue
+        const col = el.closest(selectors.col)
+        if (col) return col.getAttribute(selectors.colDataAttr) ?? null
+      }
+      return null
+    }
+
+    function findDropIndex(y, col) {
+      const { selectors } = getConfig()
+      const cards = (lastOffsetCol === col && colCardsCache.length > 0)
+        ? colCardsCache
+        : (() => {
+            const el = document.querySelector(`${selectors.col}[${selectors.colDataAttr}="${CSS.escape(col)}"] ${selectors.colBody}`)
+            return el ? Array.from(el.querySelectorAll(`:scope > ${selectors.card}`)) : []
+          })()
+      for (let i = 0; i < cards.length; i++) {
+        if (cards[i].style.display === 'none') continue
+        const r = cards[i].getBoundingClientRect()
+        if (y < r.top + r.height / 2) return i
+      }
+      return cards.length
+    }
+
+    function suppressNextClick(e) {
+      e.stopPropagation(); e.preventDefault()
+      document.removeEventListener('click', suppressNextClick, true)
+    }
+
+    // — Drag lifecycle —
+
+    function startDrag(el, x, y) {
+      const { classes } = getConfig()
+      isDragging = true; activeCbs.setActiveId(pendingId); createClone(el, x, y)
+      document.body.classList.add(classes.dragging)
+      document.addEventListener('click', suppressNextClick, true)
+    }
+
+    function cancelTouchDelay() {
+      if (touchDelayTimer !== null) { clearTimeout(touchDelayTimer); touchDelayTimer = null }
+      document.removeEventListener('pointermove', onTouchDelayMove)
+      document.removeEventListener('pointerup',   onTouchDelayUp)
+      document.removeEventListener('pointercancel', onTouchDelayUp)
+      pendingEl = null; pendingId = null; activeCbs = null
+    }
+    function onTouchDelayMove(e) {
+      latestTouchX = e.clientX; latestTouchY = e.clientY
+      if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) cancelTouchDelay()
+    }
+    function onTouchDelayUp() { cancelTouchDelay() }
+
+    function cleanup() {
+      const { classes } = getConfig()
+      if (touchDelayTimer !== null) { clearTimeout(touchDelayTimer); touchDelayTimer = null }
+      document.removeEventListener('pointermove', onTouchDelayMove)
+      document.removeEventListener('pointerup',   onTouchDelayUp)
+      document.removeEventListener('pointercancel', onTouchDelayUp)
+      if (rafMoveId !== null)      { cancelAnimationFrame(rafMoveId);      rafMoveId = null }
+      if (clearClassRafId !== null) { cancelAnimationFrame(clearClassRafId); clearClassRafId = null }
+      clearClassRafCol = null; pendingMoveX = 0; pendingMoveY = 0
+      stopAutoScroll(); clearCardOffsets(); lastOffsetCol = null
+      colBodyCache?.classList.remove(classes.colActive, classes.colClearing)
+      colBodyCache = null; colCardsCache = []
+      tilt = 0; prevMouseX = 0; activeCbs = null; lastOverCol = null
+      pendingEl = null; pendingId = null; isDragging = false; sourceRect = null; lastDropIndex = 0
+    }
+
+    function validDrop(col) {
+      const { selectors, classes } = getConfig()
+      if (!activeCbs) { cleanup(); return }
+      stopAutoScroll()
+      const cbs = activeCbs, clone = floatingClone, savedDropIndex = lastDropIndex
+      const targetPos = getCardLandingPosition(col)
+      cbs.setOverColonne(null)
+      const isSameCol = sourceEl?.closest(selectors.col)?.getAttribute(selectors.colDataAttr) === col
+      activeCbs = null; lastOverCol = null; pendingEl = null; pendingId = null
+      isDragging = false; sourceRect = null; lastDropIndex = 0; tilt = 0; prevMouseX = 0
+
+      if (!clone || !targetPos) {
+        clearCardOffsets(true)
+        Promise.resolve(cbs.handleDrop(col, savedDropIndex)).then(result => {
+          requestAnimationFrame(() => {
+            removeClone()
+            if (result === false) restoreSource()
+            else { const srcCol = sourceEl?.closest(selectors.col)?.getAttribute(selectors.colDataAttr); if (srcCol === col) restoreSource(); else sourceEl = null }
+          })
+          cbs.setActiveId(null)
+        })
+        return
+      }
+
+      clone.style.transition = `transform ${LAND_MS}ms ease-out`
+      void clone.offsetWidth
+      clone.style.transform = `translate(${targetPos.left}px, ${targetPos.top}px) scale(1) rotate(0deg)`
+      clone.style.boxShadow = '0 2px 8px rgba(0,0,0,.12)'
+
+      const onLanded = async () => {
+        if (floatingClone) {
+          floatingClone.style.zIndex = '1'
+          floatingClone.style.transform = `translate(${targetPos.left}px, ${targetPos.top}px) scale(1) rotate(0deg)`
+          floatingClone.style.boxShadow = '0 2px 8px rgba(0,0,0,.12)'
+        }
+        if (!isSameCol) clearCardOffsets(true)
+        lastOffsetCol = null
+
+        let cloneHandled = false, observer = null
+        if (!isSameCol) {
+          const colBodyTarget = document.querySelector(`${selectors.col}[${selectors.colDataAttr}="${CSS.escape(col)}"] ${selectors.colBody}`)
+          if (colBodyTarget) {
+            observer = new MutationObserver(() => {
+              observer?.disconnect(); observer = null
+              colBodyTarget.querySelectorAll(`:scope > ${selectors.card}`).forEach(c => { c.style.display = ''; c.style.animation = 'none' })
+              removeClone(); sourceEl = null; cloneHandled = true
+            })
+            observer.observe(colBodyTarget, { childList: true })
+          }
+        }
+
+        const result = await Promise.resolve(cbs.handleDrop(col, savedDropIndex))
+
+        if (!isSameCol) {
+          await new Promise(r => requestAnimationFrame(() => r()))
+          observer?.disconnect(); observer = null
+          if (!cloneHandled) {
+            const colBodyFresh = document.querySelector(`${selectors.col}[${selectors.colDataAttr}="${CSS.escape(col)}"] ${selectors.colBody}`)
+            colBodyFresh?.querySelectorAll(`:scope > ${selectors.card}`).forEach(c => { c.style.display = ''; c.style.animation = 'none' })
+            removeClone()
+            if (result === false) restoreSource(); else sourceEl = null
+            cloneHandled = true
+          }
+          cbs.setActiveId(null)
+          return
+        }
+
+        requestAnimationFrame(() => {
+          const colBodyPost = document.querySelector(`${selectors.col}[${selectors.colDataAttr}="${CSS.escape(col)}"] ${selectors.colBody}`)
+          if (colBodyPost) {
+            colBodyPost.classList.remove(classes.colActive)
+            colBodyPost.style.paddingBottom = ''
+            colBodyPost.querySelectorAll(`:scope > ${selectors.card}`).forEach(c => { c.style.transition = 'none'; c.style.transform = ''; c.style.animation = 'none' })
+            colBodyPost.querySelectorAll(`:scope > ${selectors.card}`).forEach(c => { c.style.transition = ''; c.style.animation = 'none' })
+          }
+          removeClone(); restoreSource(); cbs.setActiveId(null)
+        })
+      }
+      setTimeout(onLanded, LAND_MS + LAND_SETTLE_MS)
+    }
+
+    function invalidDrop() {
+      if (!activeCbs) { cleanup(); return }
+      const cbs = activeCbs, clone = floatingClone, el = sourceEl
+      cbs.setOverColonne(null); clearCardOffsets()
+      if (clone && sourceRect) {
+        if (el) { el.style.display = ''; el.style.visibility = 'hidden' }
+        clone.style.transition = `transform ${SNAPBACK_MS}ms cubic-bezier(.34,1.56,.64,1)`
+        void clone.offsetWidth
+        clone.style.transform = `translate(${sourceRect.left}px, ${sourceRect.top}px) scale(1) rotate(0deg)`
+        clone.style.boxShadow = '0 2px 4px rgba(0,0,0,.08)'
+        setTimeout(() => { removeClone(); if (el) el.style.visibility = ''; sourceEl = null; cbs.setActiveId(null); cleanup() }, SNAPBACK_MS)
+      } else { removeClone(); restoreSource(); cbs.setActiveId(null); cleanup() }
+    }
+
+    function processPendingMove() {
+      rafMoveId = null
+      if (!isDragging || !activeCbs) return
+      const x = pendingMoveX, y = pendingMoveY
+      updateAutoScroll(x, y)
+      const col = findColonne(x, y)
+      if (col !== lastOverCol) { lastOverCol = col; activeCbs.setOverColonne(col) }
+      if (col) {
+        if (col === lastOffsetCol && colBodyCache !== null && colBodyCache.childElementCount !== colCardsCache.length) lastOffsetCol = null
+        const newDropIdx = findDropIndex(y, col)
+        if (newDropIdx !== lastDropIndex || col !== lastOffsetCol) {
+          const prevDropIdx = lastDropIndex, colChanged = col !== lastOffsetCol
+          lastDropIndex = newDropIdx
+          updateCardOffsets(newDropIdx, prevDropIdx, col, colChanged)
+        }
+      } else { clearCardOffsets() }
+    }
+
+    function onPointerMove(e) {
+      if (!isDragging) {
+        if (Math.abs(e.clientX - startX) < DRAG_THRESHOLD && Math.abs(e.clientY - startY) < DRAG_THRESHOLD) return
+        if (!pendingEl) return
+        startDrag(pendingEl, startX, startY)
+      }
+      moveClone(e.clientX, e.clientY)
+      pendingMoveX = e.clientX; pendingMoveY = e.clientY
+      if (rafMoveId === null) rafMoveId = requestAnimationFrame(processPendingMove)
+    }
+
+    function onPointerCancel() {
+      document.removeEventListener('pointermove', onPointerMove)
+      document.removeEventListener('pointerup', onPointerUp)
+      document.removeEventListener('pointercancel', onPointerCancel)
+      if (isDragging) invalidDrop(); else cleanup()
+    }
+
+    function onPointerUp(e) {
+      const { selectors, classes } = getConfig()
+      document.removeEventListener('pointermove', onPointerMove)
+      document.removeEventListener('pointerup', onPointerUp)
+      document.removeEventListener('pointercancel', onPointerCancel)
+      if (!isDragging) { cleanup(); return }
+      if (rafMoveId !== null) { cancelAnimationFrame(rafMoveId); rafMoveId = null }
+      const col = findColonne(e.clientX, e.clientY)
+      if (col) lastDropIndex = findDropIndex(e.clientY, col)
+      document.querySelectorAll(selectors.card).forEach(c => { c.style.animation = 'none' })
+      document.body.classList.remove(classes.dragging)
+      if (col && activeCbs) validDrop(col); else invalidDrop()
+    }
+
+    function onCardPointerDown(e, id, callbacks) {
+      if (e.button !== 0) return
+      pendingEl = e.currentTarget; pendingId = id; startX = e.clientX; startY = e.clientY
+      activeCbs = callbacks; isDragging = false
+      if (e.pointerType === 'touch') {
+        latestTouchX = e.clientX; latestTouchY = e.clientY
+        touchDelayTimer = setTimeout(() => {
+          touchDelayTimer = null
+          document.removeEventListener('pointermove', onTouchDelayMove)
+          document.removeEventListener('pointerup',   onTouchDelayUp)
+          document.removeEventListener('pointercancel', onTouchDelayUp)
+          if (!pendingEl || !activeCbs) return
+          document.addEventListener('pointermove', onPointerMove)
+          document.addEventListener('pointerup', onPointerUp)
+          document.addEventListener('pointercancel', onPointerCancel)
+          startDrag(pendingEl, latestTouchX, latestTouchY)
+        }, TOUCH_DELAY_MS)
+        document.addEventListener('pointermove', onTouchDelayMove)
+        document.addEventListener('pointerup',   onTouchDelayUp)
+        document.addEventListener('pointercancel', onTouchDelayUp)
+      } else {
+        document.addEventListener('pointermove', onPointerMove)
+        document.addEventListener('pointerup', onPointerUp)
+        document.addEventListener('pointercancel', onPointerCancel)
+      }
+    }
+
+    function applyStoredOrder(items, getId, storedIds, isPrio) {
+      if (!storedIds.length && !isPrio) return items
+      const posMap = new Map()
+      storedIds.forEach((id, i) => posMap.set(id, i))
+      const sorted = [...items].sort((a, b) => (posMap.get(getId(a)) ?? 9999) - (posMap.get(getId(b)) ?? 9999))
+      if (!isPrio) return sorted
+      return [...sorted.filter(i => isPrio(i)), ...sorted.filter(i => !isPrio(i))]
+    }
+
+    // ── Demo ──────────────────────────────────────────────────────────────────
+
+    // 1. Map kanbang's default selectors/classes onto the demo's kb- naming
+    configureKanbanDrag({
+      selectors: {
+        col:         '.kb-col',
+        colBody:     '.kb-col-body',
+        card:        '.kb-card',
+        board:       '#board',
+        colDataAttr: 'data-col',
+      },
+      classes: {
+        dragging:       'kb-dragging',
+        cardFloating:   'kb-card--floating',
+        colActive:      'kb-col-body--active-drag',
+        colClearing:    'kb-col-body--clearing-drag',
+        boardScrolling: 'kb-board--scrolling',
+      },
     })
+
+    const COLS = ['todo', 'doing', 'done']
+
+    const CARD_LABELS = {
+      '1': 'Design system tokens',
+      '2': 'Implement drag & drop',
+      '3': 'Write unit tests',
+      '4': 'API documentation',
+      '5': 'Setup CI/CD pipeline',
+    }
+
+    const DEFAULT_STATE = { todo: ['1', '2', '3'], doing: ['4'], done: ['5'] }
+    const LS_KEY = 'kanbang-demo-v1'
+
+    // 2. Load order from localStorage
+    function loadState() { try { return JSON.parse(localStorage.getItem(LS_KEY)) || null } catch { return null } }
+    function saveState(s) { localStorage.setItem(LS_KEY, JSON.stringify(s)) }
+
+    let state = loadState() ?? structuredClone(DEFAULT_STATE)
+
+    // Single callbacks object shared across all cards.
+    // draggingId is set by setActiveId at drag start and stays set through handleDrop.
+    let draggingId = null
+    const cbs = {
+      setActiveId(id) { draggingId = id },
+
+      setOverColonne(col) {
+        document.querySelectorAll('.kb-col').forEach(c => c.classList.remove('kb-col--over'))
+        if (col) document.querySelector(`.kb-col[data-col="${col}"]`)?.classList.add('kb-col--over')
+      },
+
+      // 5. handleDrop: move the card in state + DOM, persist to localStorage
+      handleDrop(col, dropIndex) {
+        const id = draggingId
+        if (!id) return
+
+        // Update state
+        for (const c of COLS) state[c] = state[c].filter(x => x !== id)
+        state[col].splice(dropIndex, 0, id)
+        saveState(state)
+
+        // Move the card DOM element to its new position.
+        // kanbang will clear display:none and inline styles on the card after this returns.
+        const { selectors } = getConfig()
+        const cardEl = document.querySelector(`.kb-card[data-id="${id}"]`)
+        if (!cardEl) return
+        const colBody = document.querySelector(`${selectors.col}[${selectors.colDataAttr}="${CSS.escape(col)}"] ${selectors.colBody}`)
+        if (!colBody) return
+        const visible = [...colBody.querySelectorAll(`:scope > ${selectors.card}`)].filter(c => c !== cardEl && c.style.display !== 'none')
+        colBody.insertBefore(cardEl, dropIndex < visible.length ? visible[dropIndex] : null)
+
+        updateCounts()
+      },
+    }
+
+    // 3+4. Render cards via applyStoredOrder, attach onCardPointerDown
+    function renderColumn(colId) {
+      const colBody = document.getElementById(`col-${colId}`)
+      colBody.innerHTML = ''
+      const items = (state[colId] ?? []).map(id => ({ id, label: CARD_LABELS[id] })).filter(i => i.label)
+      const ordered = applyStoredOrder(items, c => c.id, state[colId] ?? [])
+      for (const { id, label } of ordered) {
+        const el = document.createElement('div')
+        el.className = 'kb-card'
+        el.dataset.id = id
+        el.textContent = label
+        el.addEventListener('pointerdown', e => onCardPointerDown(e, id, cbs))
+        colBody.appendChild(el)
+      }
+    }
+
+    function updateCounts() {
+      for (const col of COLS) {
+        const el = document.getElementById(`count-${col}`)
+        if (el) el.textContent = (state[col] ?? []).length
+      }
+    }
+
+    // Initial render
+    for (const col of COLS) renderColumn(col)
+    updateCounts()
   </script>
 </body>
 </html>
