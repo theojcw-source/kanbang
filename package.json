@@ -1,0 +1,5 @@
+{
+  "name": "kanbang-monorepo",
+  "private": true,
+  "workspaces": ["packages/*", "demos/*"]
+}

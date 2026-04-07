@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kanbang Demo – Vanilla</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0 }
+    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e5e5e5; padding: 32px }
+    h1 { margin-bottom: 24px; font-size: 20px; opacity: .6 }
+    .kbn-board { display: flex; gap: 16px; overflow-x: auto; user-select: none }
+    .kbn-col { width: 240px; flex-shrink: 0; background: #1a1a1a; border-radius: 10px; padding: 12px }
+    .kbn-col-header { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; opacity: .5; margin-bottom: 10px }
+    .kbn-col-body { display: flex; flex-direction: column; gap: 8px; min-height: 40px }
+    .kbn-card { background: #262626; border: 1px solid #333; border-radius: 8px; padding: 12px 14px; cursor: grab; font-size: 14px }
+    .kbn-card:active { cursor: grabbing }
+    .kbn-card--floating { border-radius: 8px !important; cursor: grabbing !important }
+    .kbn-col-body--active-drag .kbn-card { transition: transform 160ms ease }
+    .kbn-col-body--clearing-drag .kbn-card { transition: none !important }
+    body.kbn-dragging { cursor: grabbing }
+    .kbn-board--autoscrolling {}
+  </style>
+</head>
+<body>
+  <h1>kanbang · vanilla demo</h1>
+  <div class="kbn-board">
+    <div class="kbn-col" data-colonne="todo">
+      <div class="kbn-col-header">To do</div>
+      <div class="kbn-col-body">
+        <div class="kbn-card" data-id="1">Card 1</div>
+        <div class="kbn-card" data-id="2">Card 2</div>
+        <div class="kbn-card" data-id="3">Card 3</div>
+      </div>
+    </div>
+    <div class="kbn-col" data-colonne="doing">
+      <div class="kbn-col-header">In progress</div>
+      <div class="kbn-col-body">
+        <div class="kbn-card" data-id="4">Card 4</div>
+      </div>
+    </div>
+    <div class="kbn-col" data-colonne="done">
+      <div class="kbn-col-header">Done</div>
+      <div class="kbn-col-body"></div>
+    </div>
+  </div>
+  <script type="module">
+    // import { onCardPointerDown } from 'kanbang'
+    // Demo uses placeholder — wire up once kanbang is built
+    document.querySelectorAll('.kbn-card').forEach(card => {
+      card.addEventListener('pointerdown', e => {
+        console.log('drag start:', card.dataset.id, '— wire onCardPointerDown here')
+      })
+    })
+  </script>
+</body>
+</html>
