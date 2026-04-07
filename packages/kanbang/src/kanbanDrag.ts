@@ -1,7 +1,10 @@
 // TODO: copy from source
-import type { DragCallbacks } from './kanbanDrag'
 
-export type { DragCallbacks }
+export interface DragCallbacks {
+  setActiveId:    (id: string | null) => void
+  setOverColonne: (col: string | null) => void
+  handleDrop:     (col: string, dropIndex: number) => void
+}
 
 export declare function onCardPointerDown(
   e: PointerEvent,
