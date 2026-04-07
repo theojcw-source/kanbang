@@ -193,7 +193,7 @@ Call once at module level before any drag interaction. Accepts a partial config 
 
 ---
 
-### `onCardPointerDown(e, id, callbacks)`
+### `onCardPointerDown(e, id, callbacks, el?)`
 
 Attach to each card's `pointerdown` event.
 
@@ -202,9 +202,20 @@ Attach to each card's `pointerdown` event.
 | `e` | `PointerEvent` | Raw pointer event. Only `button === 0` is handled (left click / primary touch). |
 | `id` | `string` | Unique card identifier. Passed to `setActiveId`; retrieve it in `handleDrop` via your own reference. |
 | `callbacks` | `DragCallbacks` | See below. |
+| `el?` | `HTMLElement` | The card element to drag. When omitted, falls back to `e.currentTarget`. **Required in React** — pass `e.currentTarget as HTMLElement` from the synthetic event, because `e.nativeEvent.currentTarget` points to the React root due to event delegation. |
 
 **Mouse / stylus:** drag activates after the pointer moves > 5 px from the start position.  
 **Touch:** a 200 ms long-press is required. Moving the finger > 8 px during the delay cancels the drag and lets the scroll proceed normally. Lifting the finger also cancels.
+
+**React usage:**
+```tsx
+onPointerDown={e => onCardPointerDown(e.nativeEvent, card.id, callbacks, e.currentTarget as HTMLElement)}
+```
+
+**Vanilla usage** (`el` not needed — listener is attached directly to the card):
+```js
+card.addEventListener('pointerdown', e => onCardPointerDown(e, card.dataset.id, callbacks))
+```
 
 ---
 
