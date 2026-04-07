@@ -157,7 +157,7 @@ function KanbanColumn({ colId, cards, onDrop }: KanbanColumnProps) {
             className="kb-card"
             data-id={card.id}
             style={activeId === card.id ? { opacity: 0.4 } : undefined}
-            onPointerDown={e => onCardPointerDown(e.nativeEvent, card.id, callbacks)}
+            onPointerDown={e => onCardPointerDown(e.nativeEvent, card.id, callbacks, e.currentTarget as HTMLElement)}
           >
             {card.text}
           </div>
