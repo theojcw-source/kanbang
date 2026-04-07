@@ -1,4 +1,3 @@
-// TODO: copy from source
 export interface KanbanDragConfig {
   selectors: {
     col: string
@@ -16,5 +15,27 @@ export interface KanbanDragConfig {
   }
 }
 
-export declare function configureKanbanDrag(config: Partial<KanbanDragConfig>): void
-export declare function getConfig(): KanbanDragConfig
+export const defaultConfig: KanbanDragConfig = {
+  selectors: {
+    col: '.kbn-col',
+    colBody: '.kbn-col-body',
+    card: '.kbn-card',
+    board: '.kbn-board',
+    colDataAttr: 'data-colonne',
+  },
+  classes: {
+    dragging: 'kbn-dragging',
+    cardFloating: 'kbn-card--floating',
+    colActive: 'kbn-col-body--active-drag',
+    colClearing: 'kbn-col-body--clearing-drag',
+    boardScrolling: 'kbn-board--autoscrolling',
+  },
+}
+
+let _config: KanbanDragConfig = defaultConfig
+
+export function configureKanbanDrag(config: Partial<KanbanDragConfig>): void {
+  _config = { ...defaultConfig, ...config }
+}
+
+export function getConfig(): KanbanDragConfig { return _config }
