@@ -417,33 +417,20 @@ function validDrop(col: string) {
   //    que la carte réelle soit dans le DOM, ce qui provoque un flash.
   //    Si LAND_MS change, ajuster aussi la transition CSS du clone pour rester
   //    cohérent — ces deux valeurs sont couplées par design.
-  const onLanded = async () => {
+   const onLanded = async () => {
+    const savedSourceEl = sourceEl // PATCH A
 
-    // Lower clone z-index below modal overlay (z-index: 200) so it stays visible
-    // as a placeholder card in the destination column during confirm dialogs —
-    // especially useful for empty target columns where nothing else is showing.
     if (floatingClone) {
       floatingClone.style.zIndex = '1'
       floatingClone.style.transform = `translate(${targetPos.left}px, ${targetPos.top}px) scale(1) rotate(0deg)`
       floatingClone.style.boxShadow = '0 2px 8px rgba(0,0,0,.12)'
     }
 
-    // Cross-column: clear push-apart transforms BEFORE flushSync inserts the card.
-    // Without this, flushSync shifts the existing cards one DOM position down (due to
-    // the insertion) while they still have translateY — double displacement → flash.
-    // clearCardOffsets(true) + flushSync both happen before any browser paint (no await
-    // between them), so the user sees the final state in one frame.
-    // Same-column: leave transforms open — the rAF cleanup below handles them.
     if (!isSameCol) {
       clearCardOffsets(true)
     }
     lastOffsetCol = null
 
-    // MutationObserver: removes clone atomically when React inserts the real card.
-    // Gap is already closed (clearCardOffsets above), so the MO only needs to remove
-    // the clone and clear stale inline styles (including display:none set at drag start —
-    // when React reuses the same DOM node via key, display:none travels with it).
-    // Same-column: skip MO, the rAF path below handles everything.
     let cloneHandled = false
     let observer: MutationObserver | null = null
     if (!isSameCol) {
@@ -452,9 +439,6 @@ function validDrop(col: string) {
         observer = new MutationObserver(() => {
           observer?.disconnect()
           observer = null
-          // Clear all stale inline styles from the drag, including display:none which
-          // was set on the source card at drag start and travels with the DOM node when
-          // React moves it to the target column (same key → same element reused).
           colBodyTarget.querySelectorAll(`:scope > ${selectors.card}`).forEach(c => {
             const el = c as HTMLElement
             el.style.display = ''
@@ -470,10 +454,8 @@ function validDrop(col: string) {
 
     const result = await Promise.resolve(cbs.handleDrop(col, savedDropIndex))
 
-    // Cross-column fallback: if MO didn't fire (React didn't insert as a new childList
-    // node, or flushSync wasn't used), clean up after one rAF so React has time to commit.
     if (!isSameCol) {
-      await new Promise<void>(r => requestAnimationFrame(() => r()))
+      await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))) // PATCH B
       observer?.disconnect()
       observer = null
       if (!cloneHandled) {
@@ -483,6 +465,7 @@ function validDrop(col: string) {
           el.style.display = ''
           el.style.animation = 'none'
         })
+        if (savedSourceEl) savedSourceEl.style.display = '' // PATCH C
         removeClone()
         if (result === false) restoreSource()
         else sourceEl = null
@@ -492,7 +475,6 @@ function validDrop(col: string) {
       return
     }
 
-    // Same-column: rAF for atomic cleanup (gap + clone + source in one frame)
     requestAnimationFrame(() => {
       const colBodyPost = document.querySelector(`${selectors.col}[${selectors.colDataAttr}="${CSS.escape(col)}"] ${selectors.colBody}`) as HTMLElement | null
       if (colBodyPost) {
@@ -504,7 +486,6 @@ function validDrop(col: string) {
           el.style.transform = ''
           el.style.animation = 'none'
         })
-        // Re-enable transitions
         colBodyPost.querySelectorAll(`:scope > ${selectors.card}`).forEach(c => {
           const el = c as HTMLElement
           el.style.transition = ''

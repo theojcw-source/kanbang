@@ -1,6 +1,6 @@
 {
   "name": "kanbang",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lightweight kanban drag & drop with injectable CSS config",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -12,7 +12,9 @@
       "require": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch"
@@ -21,7 +23,9 @@
     "react": ">=18"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true }
+    "react": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "tsup": "^8.0.0",
@@ -33,5 +37,10 @@
     "url": "https://github.com/theojcw-source/kanbang.git",
     "directory": "packages/kanbang"
   },
-  "keywords": ["kanban", "drag-and-drop", "dnd", "sortable"]
+  "keywords": [
+    "kanban",
+    "drag-and-drop",
+    "dnd",
+    "sortable"
+  ]
 }
