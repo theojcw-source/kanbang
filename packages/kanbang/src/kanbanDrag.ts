@@ -250,7 +250,6 @@ function removeClone() {
 }
 
 function restoreSource() {
-  console.log('[KANBANG restoreSource] called, sourceEl:', !!sourceEl)
   if (sourceEl) {
     sourceEl.style.animation = 'none'  // prevent kbn-slide-in replay (display:none→'' restarts CSS animations)
     sourceEl.style.display = ''
@@ -443,7 +442,6 @@ function validDrop(col: string) {
       const colBodyTarget = document.querySelector(`${selectors.col}[${selectors.colDataAttr}="${CSS.escape(col)}"] ${selectors.colBody}`) as HTMLElement | null
       if (colBodyTarget) {
         observer = new MutationObserver(() => {
-          console.log('[KANBANG MutationObserver] fired')
           observer?.disconnect()
           observer = null
           // Real card is now in target DOM — safe to collapse the gap
@@ -463,14 +461,13 @@ function validDrop(col: string) {
     }
 
     const result = await Promise.resolve(cbs.handleDrop(col, savedDropIndex))
-    console.log('[KANBANG onLanded] handleDrop result:', result, 'cloneHandled:', cloneHandled, 'isSameCol:', isSameCol)
+
 
     if (!isSameCol) {
       await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())))
       observer?.disconnect()
       observer = null
       if (!cloneHandled) {
-        console.log('[KANBANG fallback] running, result:', result, 'savedSourceEl visible:', savedSourceEl?.style.display)
         // Fallback: MutationObserver didn't fire (handleDrop produced no DOM child insertion)
         clearCardOffsets(true)
         lastOffsetCol = null
@@ -513,7 +510,6 @@ function validDrop(col: string) {
     })
   }
 
-  console.log('[KANBANG validDrop]', { col, isSameCol, savedDropIndex })
   setTimeout(onLanded, LAND_MS + LAND_SETTLE_MS)
 }
 
