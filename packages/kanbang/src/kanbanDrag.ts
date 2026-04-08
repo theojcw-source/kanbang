@@ -455,6 +455,7 @@ function validDrop(col: string) {
           removeClone()
           sourceEl = null
           cloneHandled = true
+          cbs.setActiveId(null)
         })
         observer.observe(colBodyTarget, { childList: true })
       }
@@ -464,7 +465,7 @@ function validDrop(col: string) {
 
 
     if (!isSameCol) {
-      await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+      await new Promise<void>(r => setTimeout(r, 150))
       observer?.disconnect()
       observer = null
       if (!cloneHandled) {
@@ -481,9 +482,8 @@ function validDrop(col: string) {
         removeClone()
         if (result === false) restoreSource()
         else sourceEl = null
-        cloneHandled = true
+        cbs.setActiveId(null)
       }
-      cbs.setActiveId(null)
       return
     }
 
