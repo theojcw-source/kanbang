@@ -417,19 +417,24 @@ function validDrop(col: string) {
   //    que la carte réelle soit dans le DOM, ce qui provoque un flash.
   //    Si LAND_MS change, ajuster aussi la transition CSS du clone pour rester
   //    cohérent — ces deux valeurs sont couplées par design.
-   const onLanded = async () => {
-    const savedSourceEl = sourceEl // PATCH A
+  const onLanded = async () => {
+    const savedSourceEl = sourceEl
 
+    // Reduce clone z-index so the real card (once committed by React) shows through
     if (floatingClone) {
       floatingClone.style.zIndex = '1'
       floatingClone.style.transform = `translate(${targetPos.left}px, ${targetPos.top}px) scale(1) rotate(0deg)`
       floatingClone.style.boxShadow = '0 2px 8px rgba(0,0,0,.12)'
     }
 
-    if (!isSameCol) {
+    // Same-col: clear gap offsets immediately — card stays in same column, no DOM insertion.
+    // Cross-col: keep gap open until the real card appears in the target DOM. Clearing
+    // offsets before React commits the new node causes a one-frame layout jump (cards snap
+    // back to natural positions while the slot is empty) that shows as a visual flash.
+    if (isSameCol) {
       clearCardOffsets(true)
+      lastOffsetCol = null
     }
-    lastOffsetCol = null
 
     let cloneHandled = false
     let observer: MutationObserver | null = null
@@ -439,6 +444,9 @@ function validDrop(col: string) {
         observer = new MutationObserver(() => {
           observer?.disconnect()
           observer = null
+          // Real card is now in target DOM — safe to collapse the gap
+          clearCardOffsets(true)
+          lastOffsetCol = null
           colBodyTarget.querySelectorAll(`:scope > ${selectors.card}`).forEach(c => {
             const el = c as HTMLElement
             el.style.display = ''
@@ -455,17 +463,20 @@ function validDrop(col: string) {
     const result = await Promise.resolve(cbs.handleDrop(col, savedDropIndex))
 
     if (!isSameCol) {
-      await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))) // PATCH B
+      await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())))
       observer?.disconnect()
       observer = null
       if (!cloneHandled) {
+        // Fallback: MutationObserver didn't fire (handleDrop produced no DOM child insertion)
+        clearCardOffsets(true)
+        lastOffsetCol = null
         const colBodyFresh = document.querySelector(`${selectors.col}[${selectors.colDataAttr}="${CSS.escape(col)}"] ${selectors.colBody}`) as HTMLElement | null
         colBodyFresh?.querySelectorAll(`:scope > ${selectors.card}`).forEach(c => {
           const el = c as HTMLElement
           el.style.display = ''
           el.style.animation = 'none'
         })
-        if (savedSourceEl) savedSourceEl.style.display = '' // PATCH C
+        if (savedSourceEl) savedSourceEl.style.display = ''
         removeClone()
         if (result === false) restoreSource()
         else sourceEl = null

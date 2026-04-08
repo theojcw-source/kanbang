@@ -1,6 +1,6 @@
 {
   "name": "kanbang",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Lightweight kanban drag & drop with injectable CSS config",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
